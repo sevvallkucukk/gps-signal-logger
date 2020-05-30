@@ -11,6 +11,8 @@ import {
     TextInput
 } from 'react-native';
 
+import Geolocation from 'react-native-geolocation-service';
+
 export class MainScreen extends Component {
     constructor(props) {
         super(props)
@@ -19,8 +21,29 @@ export class MainScreen extends Component {
             period: 5,
             lat: 30.000,
             lon: 40.000,
+            alt: 0,
+            acc: 0,
             strength: -60,
         }
+    }
+
+    componentDidMount() {
+        Geolocation.getCurrentPosition(
+            (position) => {
+                console.log(position);
+                this.setState({
+                    acc: position.coords.accuracy,
+                    alt: position.coords.altitude,
+                    lat: position.coords.latitude,
+                    lon: position.coords.longitude
+                });
+            },
+            (error) => {
+                // See error code charts below.
+                console.log(error.code, error.message);
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+        );
     }
 
     start() {
@@ -35,7 +58,7 @@ export class MainScreen extends Component {
         alert('kaydettiginiz aralık ' + this.state.period);
     }
 
-    export(){
+    export() {
         alert('export')
     }
 
