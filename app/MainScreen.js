@@ -97,6 +97,13 @@ export class MainScreen extends Component {
                             />
                         </View>
 
+                        <View style={styles.row}>
+                            <Button
+                                onPress={() => this.export()}
+                                title="Upload"
+                            />
+                        </View>
+
                     </ScrollView>
                 </SafeAreaView>
             </>
