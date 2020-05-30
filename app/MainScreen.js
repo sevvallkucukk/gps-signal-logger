@@ -24,8 +24,12 @@ export class MainScreen extends Component {
             alt: 0,
             acc: 0,
             strength: -60,
+            updatesEnabled: false,
+            updateCount: 0,
         }
     }
+
+    watchId = null;
 
     componentDidMount() {
         Geolocation.getCurrentPosition(
@@ -45,6 +49,47 @@ export class MainScreen extends Component {
             { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
         );
     }
+
+    getLocationUpdates = async () => {
+        //const hasLocationPermission = await this.hasLocationPermission();
+
+        // if (!hasLocationPermission) {
+        //   return;
+        // }
+
+        this.setState({ updatesEnabled: true }, () => {
+            this.watchId = Geolocation.watchPosition(
+                (position) => {
+                    this.setState({
+                        acc: position.coords.accuracy,
+                        alt: position.coords.altitude,
+                        lat: position.coords.latitude,
+                        lon: position.coords.longitude,
+                    });
+                    console.log(position);
+                },
+                (error) => {
+                    console.log(error);
+                },
+                {
+                    enableHighAccuracy: true,
+                    distanceFilter: 10,
+                    interval: 1000 * this.state.period,
+                    fastestInterval: 2000,
+                    forceRequestLocation: true,
+                    showLocationDialog: true,
+                    useSignificantChanges: false,
+                },
+            );
+        });
+    };
+
+    removeLocationUpdates = () => {
+        if (this.watchId !== null) {
+            Geolocation.clearWatch(this.watchId);
+            this.setState({ updatesEnabled: false });
+        }
+    };
 
     start() {
         alert('kayıt başlıyor');
@@ -97,11 +142,11 @@ export class MainScreen extends Component {
 
                         <View style={styles.row}>
                             <Button
-                                onPress={() => this.start()}
+                                onPress={this.getLocationUpdates}
                                 title="Başlat"
                             />
                             <Button
-                                onPress={() => this.stop()}
+                                onPress={this.removeLocationUpdates}
                                 title="Bitir"
                             />
                         </View>
