@@ -73,7 +73,7 @@ export class MainScreen extends Component {
                 },
                 {
                     enableHighAccuracy: true,
-                    distanceFilter: 10,
+                    distanceFilter: 0,
                     interval: 1000 * this.state.period,
                     fastestInterval: 2000,
                     forceRequestLocation: true,
