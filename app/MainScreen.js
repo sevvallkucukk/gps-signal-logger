@@ -21,7 +21,7 @@ import Moment from 'moment';
 const TelephonyModule = require('react-native-telephony-manager');
 const TelephonyManager = TelephonyModule.default;
 
-// Uygulama baslayınca izinleri talep eder.
+// Kullanıcı yeniden izinleri burandan talep eder.
 // https://reactnative.dev/docs/permissionsandroid
 const requestMultiPermission = async () => {
     // console.log('requestMultiPermission');
@@ -53,68 +53,50 @@ export class MainScreen extends Component {
         super(props)
 
         this.state = {
-            imei: 'imei_yok',
-            period: 5,
-            lat: 0.00,
-            lon: 0.00,
-            alt: 0,
-            acc: 0,
-            str: 0,
+            imei: 'imei_yok',   // telefona ait tekil ID
+            period: 5,      // saniye aralıkla ölçüm yapılır
+            lat: 0.00,      //enlem
+            lon: 0.00,      //boylam
+            alt: 0,         //yükseklik metre
+            acc: 0,         //doğruluk metre
+            str: 0,         // sinyal gücü %
             net: 'network_yok', //2g/3g/4g
-            updatesEnabled: false,
-            fileName: 'isimiz',
-            updateCount: 0,
-            data: [],
-            modal0: false,
-            modal1: false,
-            modal2: false,
-            logs: 'Uygulama akışı:',
-            count: 0
+            updatesEnabled: false,  //ölçüm başladı mı
+            fileName: 'isimiz',     //kayıt edilece dosya ismi  
+            modal0: false,          // ayarlar penceresi acık mı
+            logs: 'Uygulama akışı:' //uygulama akış metni
         }
     }
 
     watchId = null;
 
+    //uygulama açılışında ilk calısan fonksiyon
     componentDidMount() {
-        // console.log('componentDidMount');
-        // console.log(PermissionsAndroid.RESULTS.GRANTED)
-
-        // Uygulama açıldığı gibi gerekli izinleri kullanıcıya sorar.
-        // requestMultiPermission();
-
-        // console.log('izin istendi ?')
-        // this.addLog('izinler istendi')
 
         this.initializeApp();
     }
 
+    // Uygulamaya akış ile ilgili notlar düşer
     addLog(str){
-        this.setState(prevState =>({ logs : prevState.logs + '\n'+Moment().format('HH:mm:ss')+'\t'+str}) );
+        this.setState(prevState =>({ logs : Moment().format('HH:mm:ss')+'\t'+str + '\n' + prevState.logs}) );
     }
 
+    // uygulama başında izinleri talep eder.
     requestPerm = async () => {
         try {
-            const permissions = [
-                PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-                PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-                PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
-                PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
-                PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
+            const permissions = [   //izinler
+                PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,  //dosya yazma   
+                PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,   //dosya okuma
+                PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,        //sinyal
+                PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION, //konum
+                PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];   //konumm
 
             const granted = await PermissionsAndroid.requestMultiple(permissions);
 
             this.addLog('konum izni '+granted["android.permission.ACCESS_COARSE_LOCATION"]);
-            // console.log('granted',granted)
 
             return granted;
 
-            if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-                console.log("izinler verildi");
-                resolve(true);
-            } else {
-                console.log("izinler verilmedi");
-                resolve(false)
-            }
         } catch (err) {
             console.warn(err);
         }
@@ -123,17 +105,13 @@ export class MainScreen extends Component {
     initializeApp = async () => {
         console.log('initializeApp')
 
-        // if(PermissionsAndroid.RESULTS.GRANTED != 'granted'){
-        //     requestMultiPermission();
-        // }
-
         let promise = new Promise( (resolve,reject) =>{
 
             resolve ( this.requestPerm() )
 
         })
 
-        let perms = await promise;
+        let perms = await promise;  //izinlerin onaylanması beklenir
 
         if(perms["android.permission.READ_PHONE_STATE"] != 'granted')
         {
@@ -152,13 +130,13 @@ export class MainScreen extends Component {
                 .doc('cihazBilgi')
                 .get()
                 .then(data => {
-                    // console.log('data',data)
+                    //bu imei ile önceden dosya var mı bakılır
                     if (data.exists) {
                         alert('cihaz kayıtlı')
                         this.addLog('cihazınız kayıtlı '+ data._data.imei)
                         return;
                     } else {
-
+                        // kayıt yoksa yeni imei ile dosya acılır
                         firestore()
                             .collection(phone.imei)
                             .doc('cihazBilgi')
@@ -168,7 +146,7 @@ export class MainScreen extends Component {
                                 kayitTarihi: Moment().format('YYYY-MM-DD_HH:mm:ss'),
                             })
                             .then(() => {
-                                this.addLog('cihazınız kaydedildi '+phone.imei)
+                                this.addLog('cihazınız veritabanına kaydedildi '+phone.imei)
                             })
                             .catch(e => this.addLog('hata olustu', e));
                     }
@@ -183,14 +161,9 @@ export class MainScreen extends Component {
     // veritabanından veri okur
     // https://rnfirebase.io/firestore/usage#read-data
     export = async () => {
-        this.addLog('Dışa aktarma başlatılıyor');
-        // console.log(RNFS.DownloadDirectoryPath)
-        // console.log('file://'+RNFS.DownloadDirectoryPath)
-        // console.log(RNFS.DocumentDirectoryPath)
-        // console.log(RNFS.ExternalDirectoryPath)
-        // console.log(RNFS.ExternalStorageDirectoryPath)
-        // return;
+        this.addLog('Dosya yazma başlatılıyor');
 
+        // veritabanından son yazılan dosya ismi bulunur
         let promise = new Promise((resolve, reject) => {
             firestore()
                 .collection(this.state.imei)
@@ -214,6 +187,7 @@ export class MainScreen extends Component {
 
         let isim = await promise;
 
+        // veritabanından bu isimdeki dosya verisi alınır
         let promise2 = new Promise((resolve, reject) => {
             firestore()
                 .collection(this.state.imei)
@@ -221,7 +195,6 @@ export class MainScreen extends Component {
                 .get()
                 .then(d => {
                     let records = d._data.records;
-                    // console.log(records)
                     this.addLog('dosyadaki konumlar alındı, toplam:  '+ records.length)
                     resolve(records);
                 })
@@ -233,7 +206,6 @@ export class MainScreen extends Component {
 
         let records = await promise2;
 
-        // console.log('dosya yazma baslıyor.', records)
 
         let content = "time,accuracy,latitude,longitude,altitude,network,strength";
         records.forEach(record => {
@@ -241,18 +213,18 @@ export class MainScreen extends Component {
             content += record.time + ',' + record.accuracy + ',' + record.location.latitude + ',' + record.location.longitude + ',' + record.altitude + ',' + record.network + ',' + record.strength;
         });
 
-        console.log(RNFS.DownloadDirectoryPath);
         const folderPath = 'file://'+RNFS.DownloadDirectoryPath +'/SinyalGücü/';
         
         const filePath = folderPath + isim;
 
+        // veritabanından alınan veriler telefonda yerel dosyaya yazılır
         RNFS.exists(folderPath)
             .then(r =>{
                 if(r){
                     this.addLog('SinyalGucu klasor var')
                     RNFS.writeFile(filePath, content, "utf8")
                         .then(t => this.addLog('dosyaya yazıldı => ' + folderPath))
-                        .catch(e => this.addLog('dosayay yazılamadı', e));
+                        .catch(e => this.addLog('dosayaya yazılamadı', e));
                 }
                 else{
                     this.addLog('SinyalGucu klasor yok')
@@ -261,7 +233,7 @@ export class MainScreen extends Component {
                             this.addLog('klasor yok. yeni olusturuldu ', r)
                             RNFS.writeFile(filePath, content, "utf8")
                                 .then(t => this.addLog('dosyaya yazıldı => '+ folderPath))
-                                .catch(e => this.addLog('dosayay yazılamadı', e));
+                                .catch(e => this.addLog('dosayaya yazılamadı', e));
                         })
                         .catch(e => console.log('klasor acma hatası', e));
                 }
@@ -272,16 +244,15 @@ export class MainScreen extends Component {
     // veritabanına veri kaydeder.
     //https://rnfirebase.io/firestore/usage#adding-documents
     addRecord(record) {
-        // console.log(this.state.fileName)
-        // console.log(this.state.imei)
 
         firestore()
             .collection(this.state.imei)
             .doc(this.state.fileName)
             .get()
             .then(data => {
+                // veritabanında yeni tarihli dosya acılmıs mı bakılır
                 if (data.exists) {
-                    // console.log('dosya varmıs')
+                    // zaten acık dosya varsa oraya yeni ölçümler yazılır
                     firestore()
                         .collection(this.state.imei)
                         .doc(this.state.fileName)
@@ -292,8 +263,7 @@ export class MainScreen extends Component {
                         .catch(e => this.addLog("yeni kayıt esansında hata oldu"+ e));
                 }
                 else {
-
-                    // console.log('dosya yokmus')
+                    // dosya yoksa yeni tarihli bir dosya olusturulup ölçümler oraya yazılır
                     firestore()
                         .collection(this.state.imei)
                         .doc(this.state.fileName)
@@ -307,21 +277,14 @@ export class MainScreen extends Component {
             })
             .then(i => console.log("kayıt veritabanına eklendi", i))
             .catch(e => console.error("kayıt esansında hata oldu", e));
-
     }
 
     // https://github.com/Agontuk/react-native-geolocation-service#watchpositionsuccesscallback-errorcallback-options
     getLocationUpdates = async () => {
-        //const hasLocationPermission = await this.hasLocationPermission();
-
-        // if (!hasLocationPermission) {
-        //   return;
-        // }
-        // console.log("getLocationUpdates()")
 
         const fileName = Moment().format('YYYY-MM-DD_HH.mm.ss') + '.csv';
-        this.addLog("Dosya isim belirlendi " + fileName)
-        this.addLog(this.state.period + 'sn ile konum alınacak')
+        this.addLog("Yeni dosya ismi belirlendi " + fileName)
+        this.addLog(this.state.period + ' sn ile ölçüm yapılacak')
 
         this.setState({ updatesEnabled: true, fileName: fileName })
 
@@ -348,12 +311,12 @@ export class MainScreen extends Component {
                         this.setState({ net: network });
                     }
 
-                    // telefon sinyal bilgilerini verir. ağ tipini verir. LTE/WCDMA/UTMS. sinyal gücü verir 18asu.
+                    // telefon sinyal bilgilerini verir. ağ tipini verir. LTE/WCDMA/UTMS. sinyal gücü verir. Örn. 18asu.
                     TelephonyManager.getCellInfo((network) => {
 
                         // bazen telefon cekmez, bu deger boş dönebilir.
                         if (network[0].cellSignalStrength != null) {
-
+                            // alınan asu cinsi ölçüm %yüzdey cevrilir.
                             const strength = this.convertPercentage(network[0].cellSignalStrength.asuLevel);
 
                             record["strength"] = strength;
@@ -409,6 +372,7 @@ export class MainScreen extends Component {
         }
     }
 
+    // ölçüm periodunu kullanıcı değiştirebilir.
     saveConfig() {
         this.addLog('yeni period '+ this.state.period)
         this.setState({ modal0: false })
@@ -425,13 +389,15 @@ export class MainScreen extends Component {
                         <View style={styles.header}>
                             <Text style={{ fontSize: 24, fontWeight: '800' }}> SİNYAL GÜCÜ </Text>
                         </View>
-
+                        {/* kullanıcı period değiştiri */}
                         <View style={styles.row}>
                             <Button title="Ayar Yap" onPress={() => this.setState({ modal0: true })} />
                         </View>
+                        {/* ölçüm yapılırken yeşil yapılmazken gri Bar */}
                         <View style={{ marginBottom: 20, width: '100%', height: 40, justifyContent:'center',alignItems:'center', backgroundColor: this.state.updatesEnabled ? 'green' : 'gray' }}>
                             {this.state.updatesEnabled && <Text style={{color:'white',fontWeight:'800',fontSize:18}}>Veri kaydı devam ediyor.</Text>}
                         </View>
+                        {/* ölçüm başlatma ve bitirme düğmeleri */}
                         <View style={styles.row}>
                             <Button
                                 onPress={() => this.getLocationUpdates()}
@@ -442,7 +408,7 @@ export class MainScreen extends Component {
                                 title="Bitir"
                             />
                         </View>
-
+                        {/* anlık konum ve sinyal bilgileri */}
                         <View style={styles.row}>
                             <Text>enlem: {this.state.lat} </Text>
                             <Text>boylam: {this.state.lon} </Text>
@@ -452,13 +418,14 @@ export class MainScreen extends Component {
                             <Text>ağ tipi: {this.state.net} </Text>
                             <Text>sinyal gücü: {this.state.str} </Text>
                         </View>
-
+                        {/* klasöre aktarma düğmesi */}
                         <View style={styles.row}>
                             <Button
                                 onPress={() => this.export()}
                                 title="Dışa Aktar"
                             />
                         </View>
+                        {/* uygulama akışı gösterme paneli */}
                         <TextInput
                             multiline={true}
                             value={this.state.logs}
