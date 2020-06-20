@@ -63,7 +63,7 @@ export class MainScreen extends Component {
             typ: 'type_yok',    //LTE,WCDMA
             net: 'network_yok', //2g/3g/4g
             updatesEnabled: false,
-            tempFileName: 'isimiz',
+            fileName: 'isimiz',
             updateCount: 0,
             data: [],
             modal0: false,
@@ -84,6 +84,36 @@ export class MainScreen extends Component {
         TelephonyManager.getPhoneInfo(data => {
             // telefon imei sonra lazım olur diye STATE içinde kaydedilir.
             this.setState({ imei: data.imei });
+
+            firestore()
+                .collection(data.imei)
+                .doc('cihazBilgi')
+                .get()
+                .then(data => {
+                    if(data.exists){
+                        alert('cihaz kayıtlı')
+                        return ;
+                    }else{
+                        
+                        firestore()
+                        .collection(data.imei)
+                        .doc('cihazBilgi')
+                        .set({
+                            isim: 0,
+                            imei: data.imei,
+                            kayitTarihi: Moment().format('YYYY-MM-DD_HH:MM:SS'),
+                        })
+                        .then(() => {
+                            alert('Cihaz Kaydedildi')
+                            console.log('Cihaz Kaydedildi');
+                        })
+                        .catch(e => console.log('hata olustu', e));
+                    }
+                })
+                .then(() => {
+                    console.log('Cihaz Kaydedildi');
+                })
+                .catch(e => console.log('hata olustu', e));
 
             firestore()
                 .collection(data.imei)
@@ -116,11 +146,11 @@ export class MainScreen extends Component {
                     firestore()
                     .collection(this.state.imei)
                     .doc(this.state.fileName)
-                    .set({
+                    .update({
                         records: firestore.FieldValue.arrayUnion(record)
                     })
-                    .then(i => console.log("SET kayıt veritabanına eklendi", i))
-                    .catch(e => console.error("SET kayıt esansında hata oldu", e));
+                    .then(i => console.log("UPDATE kayıt veritabanına eklendi", i))
+                    .catch(e => console.error("UPDATE kayıt esansında hata oldu", e));
                 }
                 else{
                     
@@ -257,7 +287,7 @@ export class MainScreen extends Component {
     // sinyal gücünü asu degerinden yüzdelik değere cevirir.
     // 4g icin hesaplama ile diğer ağlar icin yapılan farklıdır.
     convertPercentage(asu) {
-        if (asu == '4g') {
+        if (this.state.net == '4g') {
             return ((asu - 3) / 92) * 100;
         } else {
             return (asu / 32) * 100;
