@@ -12,42 +12,90 @@ import {
 } from 'react-native';
 
 import Geolocation from 'react-native-geolocation-service';
+import firestore from '@react-native-firebase/firestore';
+import RNFS from 'react-native-fs';
+import Moment from 'moment';
+
+// telefon sinyallerini android içinden alır.
+const TelephonyModule = require('react-native-telephony-manager');
+const TelephonyManager = TelephonyModule.default;
+
+// Uygulama baslayınca izinleri talep eder.
+// https://reactnative.dev/docs/permissionsandroid
+const requestMultiPermission = async () => {
+    console.log('requestMultiPermission');
+
+    try {
+        const permissions = [
+            PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+            PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+            PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
+            PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
+
+        const granted = await PermissionsAndroid.requestMultiple(permissions);
+
+        console.log(granted);
+
+        if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+            console.log("izinler verildi");
+        } else {
+            console.log("izinler verilmedi");
+        }
+    } catch (err) {
+        console.warn(err);
+    }
+};
 
 export class MainScreen extends Component {
     constructor(props) {
         super(props)
 
         this.state = {
+            imei: 'imei_yok',
             period: 5,
-            lat: 30.000,
-            lon: 40.000,
+            lat: 0.00,
+            lon: 0.00,
             alt: 0,
             acc: 0,
-            strength: -60,
+            str: 0,
+            typ: 'type_yok',    //LTE,WCDMA
+            net: 'network_yok', //2g/3g/4g
             updatesEnabled: false,
             updateCount: 0,
+            data: [],
+            modal0: false,
+            modal1: false,
+            modal2: false,
         }
     }
 
     watchId = null;
 
     componentDidMount() {
-        Geolocation.getCurrentPosition(
-            (position) => {
-                console.log(position);
-                this.setState({
-                    acc: position.coords.accuracy,
-                    alt: position.coords.altitude,
-                    lat: position.coords.latitude,
-                    lon: position.coords.longitude
-                });
-            },
-            (error) => {
-                // See error code charts below.
-                console.log(error.code, error.message);
-            },
-            { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-        );
+        console.log('componentDidMount');
+
+        // Uygulama açıldığı gibi gerekli izinleri kullanıcıya sorar.
+        requestMultiPermission;
+
+        // Uygulama açılınca veritabanına telefon imei ile bir kayıt açar.
+        TelephonyManager.getPhoneInfo(data => {
+            // telefon imei sonra lazım olur diye STATE içinde kaydedilir.
+            this.setState({ imei: data.imei });
+
+            firestore()
+                .collection(data.imei)
+                .doc('cihazBilgi')
+                .set({
+                    isim: 0,
+                    imei: data.imei,
+                    kayitTarihi: Moment().format('YYYY-MM-DD_HH:MM:SS'),
+                })
+                .then(() => {
+                    console.log('Cihaz Kaydedildi');
+                })
+                .catch(e => console.log('hata olustu', e));
+        });
     }
 
     getLocationUpdates = async () => {
