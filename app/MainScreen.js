@@ -68,26 +68,36 @@ export class MainScreen extends Component {
             modal0: false,
             modal1: false,
             modal2: false,
+            logs: 'Uygulama akışı:',
         }
     }
 
     watchId = null;
 
-    componentDidMount(){
+    componentDidMount() {
         console.log('componentDidMount');
         console.log(PermissionsAndroid.RESULTS.GRANTED)
 
         // Uygulama açıldığı gibi gerekli izinleri kullanıcıya sorar.
-        requestMultiPermission();
+        // requestMultiPermission();
 
         console.log('izin istendi ?')
-        
-        this.initializeApp();
-       
+        this.addLog('izinler istendi')
+
+        // this.initializeApp();
     }
 
-    initializeApp(){
-        
+    addLog(str){
+        this.setState(prevState =>({ logs : prevState.logs + '\n'+Moment().format('HH:mm:ss')+'\t'+str}) );
+    }
+
+    initializeApp() {
+        console.log('initializeApp')
+
+        if(PermissionsAndroid.RESULTS.GRANTED != 'granted'){
+            requestMultiPermission();
+        }
+
         // Uygulama açılınca veritabanına telefon imei ile bir kayıt açar.
         TelephonyManager.getPhoneInfo(data => {
             // telefon imei sonra lazım olur diye STATE içinde kaydedilir.
@@ -98,43 +108,32 @@ export class MainScreen extends Component {
                 .doc('cihazBilgi')
                 .get()
                 .then(data => {
-                    if(data.exists){
+                    if (data.exists) {
                         alert('cihaz kayıtlı')
-                        return ;
-                    }else{
-                        
+                        this.addLog('cihazınız kayıtlı')
+                        return;
+                    } else {
+
                         firestore()
-                        .collection(data.imei)
-                        .doc('cihazBilgi')
-                        .set({
-                            isim: 0,
-                            imei: data.imei,
-                            kayitTarihi: Moment().format('YYYY-MM-DD_HH:mm:ss'),
-                        })
-                        .then(() => {
-                            alert('Cihaz Kaydedildi')
-                            console.log('Cihaz Kaydedildi');
-                        })
-                        .catch(e => console.log('hata olustu', e));
+                            .collection(data.imei)
+                            .doc('cihazBilgi')
+                            .set({
+                                isim: 0,
+                                imei: data.imei,
+                                kayitTarihi: Moment().format('YYYY-MM-DD_HH:mm:ss'),
+                            })
+                            .then(() => {
+                                alert('Cihaz Kaydedildi')
+                                console.log('Cihaz Kaydedildi');
+                                this.addLog('cihazınız kaydedildi')
+                            })
+                            .catch(e => this.addLog('hata olustu', e));
                     }
                 })
                 .then(() => {
                     console.log('Cihaz Kaydedildi');
                 })
-                .catch(e => console.log('hata olustu', e));
-
-            firestore()
-                .collection(data.imei)
-                .doc('cihazBilgi')
-                .set({
-                    isim: 0,
-                    imei: data.imei,
-                    kayitTarihi: Moment().format('YYYY-MM-DD_HH:mm:ss'),
-                })
-                .then(() => {
-                    console.log('Cihaz Kaydedildi');
-                })
-                .catch(e => console.log('hata olustu', e));
+                .catch(e => this.addLog('hata olustu', e));
         });
     }
 
@@ -143,18 +142,18 @@ export class MainScreen extends Component {
     export = async () => {
         console.log('readRecords()');
 
-        let promise = new Promise((resolve, reject)=>{
+        let promise = new Promise((resolve, reject) => {
             firestore()
                 .collection(this.state.imei)
                 .orderBy('isim', 'asc')
                 .get()
                 .then(data => {
                     const size = data.size;
-                    console.log("sonuncu:  ", data.docs[size - 1]._data);
-                    console.log("getRecords", data.size);
                     
+                    this.addLog("cihazın toplam kayıt sayısı", data.size);
+
                     const isim = data.docs[size - 1]._data.isim;
-                    console.log('isim '+isim)
+                    this.addLog('dosya ismi alındı ',isim)
 
                     resolve(isim);
                 })
@@ -166,98 +165,88 @@ export class MainScreen extends Component {
 
         let isim = await promise;
 
-        let promise2 =  new Promise( (resolve,reject) =>{
+        let promise2 = new Promise((resolve, reject) => {
             firestore()
-            .collection(this.state.imei)
-            .doc(isim)
-            .get()
-            .then(d => {
-                let records = d._data.records;
-                console.log(records)
-                resolve(records);
-            })
-            .catch(e => {
-                reject(e);
-                console.error(e);
-            });
+                .collection(this.state.imei)
+                .doc(isim)
+                .get()
+                .then(d => {
+                    let records = d._data.records;
+                    console.log(records)
+                    this.addLog('dosyadaki kayıtlar alındı, toplam:  '+ records.length)
+                    resolve(records);
+                })
+                .catch(e => {
+                    reject(e);
+                    this.addLog('kayıtlar alınırken hata oldu '+e);
+                });
         })
 
         let records = await promise2;
 
-        console.log('dosay yazma baslıyor.',records)
+        console.log('dosya yazma baslıyor.', records)
 
-        let content= "time,accuracy,latitude,longitude,altitude,network,stregnth";
+        let content = "time,accuracy,latitude,longitude,altitude,network,strength";
         records.forEach(record => {
             content += "\n";
-            content += record.time +','+record.accuracy+','+record.location.latitude+','+record.location.longitude+','+record.altitude+','+record.network+','+record.strength;
+            content += record.time + ',' + record.accuracy + ',' + record.location.latitude + ',' + record.location.longitude + ',' + record.altitude + ',' + record.network + ',' + record.strength;
         });
-        console.log('2content: ',content)
 
         Moment.locale('tr');
-        const folderPath = RNFS.ExternalStorageDirectoryPath + '/GPS_Signal_Logger/';
-        // const filePath = folderPath + Moment().format('YYYY-MM-DD_HH.mm.ss') + '.csv';
+        const folderPath = RNFS.ExternalStorageDirectoryPath + '/SinyalGucu/';
+        
         const filePath = folderPath + isim;
 
         RNFS.exists(folderPath)
-            .then(r => console.log('klasor var ',r))
-            .catch(e => console.error('klasor kontrol hatası',e));
+            .then(r => console.log('klasor var ', r))
+            .catch(e => console.error('klasor kontrol hatası', e));
 
         RNFS.mkdir(folderPath)
-            .then(r => console.log('klasor acıldı ',r))
-            .catch(e => console.log('klasor acma hatası',e));
+            .then(r => console.log('klasor acıldı ', r))
+            .catch(e => console.log('klasor acma hatası', e));
 
         RNFS.writeFile(filePath, content, "utf8")
-            .then(t => console.log('dosayaya yazıldı', t))
-            .catch(e => console.log('dosayay yazılamadı',e));
+            .then(t => this.addLog('dosyaya yazıldı',t))
+            .catch(e => this.addLog('dosayay yazılamadı', e));
     }
 
     // veritabanına veri kaydeder.
     //https://rnfirebase.io/firestore/usage#adding-documents
     addRecord(record) {
-        console.log('addRecord()', this.state.fileName);
-        console.log('addRecord()', record);
 
         firestore()
             .collection(this.state.imei)
             .doc(this.state.fileName)
             .get()
             .then(data => {
-                if(data.exists){
+                if (data.exists) {
                     console.log('dosya varmıs')
                     firestore()
-                    .collection(this.state.imei)
-                    .doc(this.state.fileName)
-                    .update({
-                        records: firestore.FieldValue.arrayUnion(record)
-                    })
-                    .then(i => console.log("UPDATE kayıt veritabanına eklendi", i))
-                    .catch(e => console.error("UPDATE kayıt esansında hata oldu", e));
+                        .collection(this.state.imei)
+                        .doc(this.state.fileName)
+                        .update({
+                            records: firestore.FieldValue.arrayUnion(record)
+                        })
+                        .then(i => this.addLog("yeni kayıt veritabanına eklendi", i))
+                        .catch(e => this.addLog("yeni kayıt esansında hata oldu", e));
                 }
-                else{
-                    
+                else {
+
                     console.log('dosya yokmus')
                     firestore()
-                    .collection(this.state.imei)
-                    .doc(this.state.fileName)
-                    .set({
-                        isim: this.state.fileName,
-                        records: firestore.FieldValue.arrayUnion(record)
-                    })
-                    .then(i => console.log("ADD kayıt veritabanına eklendi", i))
-                    .catch(e => console.error("ADD kayıt esansında hata oldu", e));
+                        .collection(this.state.imei)
+                        .doc(this.state.fileName)
+                        .set({
+                            isim: this.state.fileName,
+                            records: firestore.FieldValue.arrayUnion(record)
+                        })
+                        .then(i => this.addLog("yeni kayıt veritabanına eklendi", i))
+                        .catch(e => this.addLog("yeni kayıt esansında hata oldu", e));
                 }
             })
             .then(i => console.log("kayıt veritabanına eklendi", i))
             .catch(e => console.error("kayıt esansında hata oldu", e));
 
-        // firestore()
-        //     .collection(this.state.imei)
-        //     .doc(this.state.fileName)
-        //     .set({
-        //         records: firestore.FieldValue.arrayUnion(record)
-        //     })
-        //     .then(i => console.log("kayıt veritabanına eklendi", i))
-        //     .catch(e => console.error("kayıt esansında hata oldu", e));
     }
 
     // https://github.com/Agontuk/react-native-geolocation-service#watchpositionsuccesscallback-errorcallback-options
@@ -270,7 +259,8 @@ export class MainScreen extends Component {
         console.log("getLocationUpdates()")
 
         const fileName = Moment().format('YYYY-MM-DD_HH.mm.ss') + '.csv';
-        console.log("DOSYA siim verildi  \t"+fileName)
+        this.addLog("Dosya isim belirlendi " + fileName)
+        this.addLog(this.state.period + 'sn ile konum alınacak')
 
         this.setState({ updatesEnabled: true, fileName: fileName })
 
@@ -283,7 +273,6 @@ export class MainScreen extends Component {
                     lat: position.coords.latitude,
                     lon: position.coords.longitude,
                 });
-                console.log("postion: ", position);
 
                 let record = {}
                 record["accuracy"] = position.coords.accuracy;
@@ -294,7 +283,6 @@ export class MainScreen extends Component {
                 // telefon ağ isim bilgisini verir. 2g/3g/4g gibi
                 TelephonyManager.getNetworkClass((network) => {
                     if (network != null) {
-                        console.log("ağ tipi: ", network);
                         record["network"] = network;
                         this.setState({ net: network });
                     }
@@ -311,18 +299,11 @@ export class MainScreen extends Component {
                             record["asuLevel"] = network[0].cellSignalStrength.asuLevel;
 
                             this.setState({ str: strength });
-
-                            console.log("asuLevel \t" + network[0].cellSignalStrength.asuLevel);
-                            console.log("strength \t" + strength);
                         }
-
-
-                        console.log('record: ', record);
 
                         this.addRecord(record);
 
                     });
-
                 });
             },
             (error) => {
@@ -342,7 +323,7 @@ export class MainScreen extends Component {
 
     // konum alma ve kayıt etmeyi durdurur.
     removeLocationUpdates = () => {
-        console.log("removeLocationUpdates()")
+        this.addLog("Konum toplama durdu")
         if (this.watchId !== null) {
             Geolocation.clearWatch(this.watchId);
             Geolocation.stopObserving();
@@ -353,8 +334,6 @@ export class MainScreen extends Component {
     // sinyal gücünü asu degerinden yüzdelik değere cevirir.
     // 4g icin hesaplama ile diğer ağlar icin yapılan farklıdır.
     convertPercentage(asu) {
-        console.log('convert')
-        console.log(this.state.net);
         if (this.state.net == '4G') {
             return (((asu - 3) / 92) * 100).toFixed(2);
         } else {
@@ -363,7 +342,7 @@ export class MainScreen extends Component {
     }
 
     saveConfig() {
-        console.log('saveConfig()')
+        this.addLog('yeni period '+ this.state.period)
         this.setState({ modal0: false })
     }
 
@@ -376,14 +355,14 @@ export class MainScreen extends Component {
                         style={styles.scrollView}>
 
                         <View style={styles.header}>
-                            <Text style={{fontSize:24,fontWeight:800}}> SİNYAL GÜCÜ </Text>
+                            <Text style={{ fontSize: 24, fontWeight: '800' }}> SİNYAL GÜCÜ </Text>
                         </View>
-                        
+
                         <View style={styles.row}>
                             <Button title="config" onPress={() => this.setState({ modal0: true })} />
                         </View>
-                        <View style={{marginBottom:20, width:'100%',height:40, backgroundColor:this.state.updatesEnabled ? 'green' : 'gray'}}>
-                            { this.state.updatesEnabled && <Text>Veri kaydı devam ediyor.</Text>}
+                        <View style={{ marginBottom: 20, width: '100%', height: 40, justifyContent:'center',alignItems:'center', backgroundColor: this.state.updatesEnabled ? 'green' : 'gray' }}>
+                            {this.state.updatesEnabled && <Text style={{color:'white',fontWeight:'800',fontSize:18}}>Veri kaydı devam ediyor.</Text>}
                         </View>
                         <View style={styles.row}>
                             <Button
@@ -412,6 +391,13 @@ export class MainScreen extends Component {
                                 title="Export"
                             />
                         </View>
+                        <TextInput
+                            multiline={true}
+                            value={this.state.logs}
+                            editable={false}
+                            scrollEnabled={true}
+                            style={styles.logs}
+                        />
 
                     </ScrollView>
                 </SafeAreaView>
@@ -427,7 +413,7 @@ export class MainScreen extends Component {
                             <TextInput
                                 value={this.state.period}
                                 onChangeText={(period) => this.setState({ period: period })}
-                                onSubmitEditing={(period) => this.setState({ period : period})}
+                                onSubmitEditing={(period) => this.setState({ period: period })}
                                 style={styles.inputs}
                                 placeholder={"örn. 2"}
                                 placeholderTextColor={"#aaa"}
@@ -439,6 +425,7 @@ export class MainScreen extends Component {
                                 blurOnSubmit={false}
                             />
                             <Button title="Ayarları Kaydet" onPress={() => this.saveConfig()} />
+                            <Button title="İzinleri talep et" onPress={() => requestMultiPermission()} />
                             <Button title="close" onPress={() => this.setState({ modal0: false })} />
                         </View>
                     </View>
@@ -478,11 +465,14 @@ const styles = StyleSheet.create({
         backgroundColor: '#333e'
     },
     modalView: {
+        height: '40%',
         margin: 20,
         backgroundColor: "white",
         borderRadius: 20,
         padding: 35,
+        flexDirection: 'column',
         alignItems: "center",
+        justifyContent: "space-around",
         shadowColor: "#000",
         shadowOffset: {
             width: 0,
@@ -492,4 +482,8 @@ const styles = StyleSheet.create({
         shadowRadius: 3.84,
         elevation: 5
     },
+    logs: {
+        width:'100%',
+        backgroundColor:'#eee',
+    }
 });
