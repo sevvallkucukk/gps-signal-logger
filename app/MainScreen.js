@@ -24,7 +24,7 @@ const TelephonyManager = TelephonyModule.default;
 // Uygulama baslayınca izinleri talep eder.
 // https://reactnative.dev/docs/permissionsandroid
 const requestMultiPermission = async () => {
-    console.log('requestMultiPermission');
+    // console.log('requestMultiPermission');
 
     try {
         const permissions = [
@@ -36,7 +36,7 @@ const requestMultiPermission = async () => {
 
         const granted = await PermissionsAndroid.requestMultiple(permissions);
 
-        console.log(granted);
+        // console.log(granted);
 
         if (granted === PermissionsAndroid.RESULTS.GRANTED) {
             console.log("izinler verildi");
@@ -69,63 +69,106 @@ export class MainScreen extends Component {
             modal1: false,
             modal2: false,
             logs: 'Uygulama akışı:',
+            count: 0
         }
     }
 
     watchId = null;
 
     componentDidMount() {
-        console.log('componentDidMount');
-        console.log(PermissionsAndroid.RESULTS.GRANTED)
+        // console.log('componentDidMount');
+        // console.log(PermissionsAndroid.RESULTS.GRANTED)
 
         // Uygulama açıldığı gibi gerekli izinleri kullanıcıya sorar.
         // requestMultiPermission();
 
-        console.log('izin istendi ?')
-        this.addLog('izinler istendi')
+        // console.log('izin istendi ?')
+        // this.addLog('izinler istendi')
 
-        // this.initializeApp();
+        this.initializeApp();
     }
 
     addLog(str){
         this.setState(prevState =>({ logs : prevState.logs + '\n'+Moment().format('HH:mm:ss')+'\t'+str}) );
     }
 
-    initializeApp() {
+    requestPerm = async () => {
+        try {
+            const permissions = [
+                PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+                PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+                PermissionsAndroid.PERMISSIONS.READ_PHONE_STATE,
+                PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+                PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
+
+            const granted = await PermissionsAndroid.requestMultiple(permissions);
+
+            this.addLog('konum izni '+granted["android.permission.ACCESS_COARSE_LOCATION"]);
+            // console.log('granted',granted)
+
+            return granted;
+
+            if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+                console.log("izinler verildi");
+                resolve(true);
+            } else {
+                console.log("izinler verilmedi");
+                resolve(false)
+            }
+        } catch (err) {
+            console.warn(err);
+        }
+    }
+
+    initializeApp = async () => {
         console.log('initializeApp')
 
-        if(PermissionsAndroid.RESULTS.GRANTED != 'granted'){
-            requestMultiPermission();
+        // if(PermissionsAndroid.RESULTS.GRANTED != 'granted'){
+        //     requestMultiPermission();
+        // }
+
+        let promise = new Promise( (resolve,reject) =>{
+
+            resolve ( this.requestPerm() )
+
+        })
+
+        let perms = await promise;
+
+        if(perms["android.permission.READ_PHONE_STATE"] != 'granted')
+        {
+            this.addLog('izinlerde problem. Lütfen tekrar izinleri verin')
+            return;
         }
 
         // Uygulama açılınca veritabanına telefon imei ile bir kayıt açar.
-        TelephonyManager.getPhoneInfo(data => {
+        TelephonyManager.getPhoneInfo(phone => {
             // telefon imei sonra lazım olur diye STATE içinde kaydedilir.
-            this.setState({ imei: data.imei });
+            this.setState({ imei: phone.imei });
+            this.addLog(phone.imei)
 
             firestore()
-                .collection(data.imei)
+                .collection(phone.imei)
                 .doc('cihazBilgi')
                 .get()
                 .then(data => {
+                    // console.log('data',data)
                     if (data.exists) {
                         alert('cihaz kayıtlı')
-                        this.addLog('cihazınız kayıtlı')
+                        this.addLog('cihazınız kayıtlı '+ data._data.imei)
                         return;
                     } else {
 
                         firestore()
-                            .collection(data.imei)
+                            .collection(phone.imei)
                             .doc('cihazBilgi')
                             .set({
                                 isim: 0,
-                                imei: data.imei,
+                                imei: phone.imei,
                                 kayitTarihi: Moment().format('YYYY-MM-DD_HH:mm:ss'),
                             })
                             .then(() => {
-                                alert('Cihaz Kaydedildi')
-                                console.log('Cihaz Kaydedildi');
-                                this.addLog('cihazınız kaydedildi')
+                                this.addLog('cihazınız kaydedildi '+phone.imei)
                             })
                             .catch(e => this.addLog('hata olustu', e));
                     }
@@ -140,7 +183,7 @@ export class MainScreen extends Component {
     // veritabanından veri okur
     // https://rnfirebase.io/firestore/usage#read-data
     export = async () => {
-        console.log('readRecords()');
+        this.addLog('Dışa aktarma başlatılıyor');
 
         let promise = new Promise((resolve, reject) => {
             firestore()
@@ -150,10 +193,10 @@ export class MainScreen extends Component {
                 .then(data => {
                     const size = data.size;
                     
-                    this.addLog("cihazın toplam kayıt sayısı", data.size);
+                    this.addLog("cihazın toplam kayıt sayısı"+data.size);
 
                     const isim = data.docs[size - 1]._data.isim;
-                    this.addLog('dosya ismi alındı ',isim)
+                    this.addLog('dosya ismi alındı '+isim)
 
                     resolve(isim);
                 })
@@ -172,8 +215,8 @@ export class MainScreen extends Component {
                 .get()
                 .then(d => {
                     let records = d._data.records;
-                    console.log(records)
-                    this.addLog('dosyadaki kayıtlar alındı, toplam:  '+ records.length)
+                    // console.log(records)
+                    this.addLog('dosyadaki konumlar alındı, toplam:  '+ records.length)
                     resolve(records);
                 })
                 .catch(e => {
@@ -184,7 +227,7 @@ export class MainScreen extends Component {
 
         let records = await promise2;
 
-        console.log('dosya yazma baslıyor.', records)
+        // console.log('dosya yazma baslıyor.', records)
 
         let content = "time,accuracy,latitude,longitude,altitude,network,strength";
         records.forEach(record => {
@@ -213,6 +256,8 @@ export class MainScreen extends Component {
     // veritabanına veri kaydeder.
     //https://rnfirebase.io/firestore/usage#adding-documents
     addRecord(record) {
+        // console.log(this.state.fileName)
+        // console.log(this.state.imei)
 
         firestore()
             .collection(this.state.imei)
@@ -220,19 +265,19 @@ export class MainScreen extends Component {
             .get()
             .then(data => {
                 if (data.exists) {
-                    console.log('dosya varmıs')
+                    // console.log('dosya varmıs')
                     firestore()
                         .collection(this.state.imei)
                         .doc(this.state.fileName)
                         .update({
                             records: firestore.FieldValue.arrayUnion(record)
                         })
-                        .then(i => this.addLog("yeni kayıt veritabanına eklendi", i))
-                        .catch(e => this.addLog("yeni kayıt esansında hata oldu", e));
+                        .then(i => this.addLog("yeni kayıt veritabanına eklendi "+this.state.str))
+                        .catch(e => this.addLog("yeni kayıt esansında hata oldu"+ e));
                 }
                 else {
 
-                    console.log('dosya yokmus')
+                    // console.log('dosya yokmus')
                     firestore()
                         .collection(this.state.imei)
                         .doc(this.state.fileName)
@@ -240,8 +285,8 @@ export class MainScreen extends Component {
                             isim: this.state.fileName,
                             records: firestore.FieldValue.arrayUnion(record)
                         })
-                        .then(i => this.addLog("yeni kayıt veritabanına eklendi", i))
-                        .catch(e => this.addLog("yeni kayıt esansında hata oldu", e));
+                        .then(i => this.addLog("yeni kayıt veritabanına eklendi "+this.state.str))
+                        .catch(e => this.addLog("yeni kayıt esansında hata oldu"+ e));
                 }
             })
             .then(i => console.log("kayıt veritabanına eklendi", i))
@@ -256,7 +301,7 @@ export class MainScreen extends Component {
         // if (!hasLocationPermission) {
         //   return;
         // }
-        console.log("getLocationUpdates()")
+        // console.log("getLocationUpdates()")
 
         const fileName = Moment().format('YYYY-MM-DD_HH.mm.ss') + '.csv';
         this.addLog("Dosya isim belirlendi " + fileName)
@@ -268,16 +313,16 @@ export class MainScreen extends Component {
             (position) => {
                 // telefon konum bilgilerini verir.
                 this.setState({
-                    acc: position.coords.accuracy,
-                    alt: position.coords.altitude,
+                    acc: position.coords.accuracy.toFixed(0),
+                    alt: position.coords.altitude.toFixed(0),
                     lat: position.coords.latitude,
                     lon: position.coords.longitude,
                 });
 
                 let record = {}
-                record["accuracy"] = position.coords.accuracy;
+                record["accuracy"] = position.coords.accuracy.toFixed(0);
                 record["location"] = new firestore.GeoPoint(position.coords.latitude, position.coords.longitude);
-                record["altitude"] = position.coords.altitude;
+                record["altitude"] = position.coords.altitude.toFixed(0);
                 record["time"] = Moment(position.timestamp).format('YYYY-MM-DD_HH:mm:ss');
 
                 // telefon ağ isim bilgisini verir. 2g/3g/4g gibi
@@ -291,12 +336,19 @@ export class MainScreen extends Component {
                     TelephonyManager.getCellInfo((network) => {
 
                         // bazen telefon cekmez, bu deger boş dönebilir.
-                        if (network[0].cellSignalStrength.asuLevel) {
+                        if (network[0].cellSignalStrength != null) {
 
                             const strength = this.convertPercentage(network[0].cellSignalStrength.asuLevel);
 
                             record["strength"] = strength;
                             record["asuLevel"] = network[0].cellSignalStrength.asuLevel;
+
+                            this.setState({ str: strength });
+                        }
+                        else{
+                            
+                            record["strength"] = 0;
+                            record["asuLevel"] = 0;
 
                             this.setState({ str: strength });
                         }
@@ -359,7 +411,7 @@ export class MainScreen extends Component {
                         </View>
 
                         <View style={styles.row}>
-                            <Button title="config" onPress={() => this.setState({ modal0: true })} />
+                            <Button title="Ayar Yap" onPress={() => this.setState({ modal0: true })} />
                         </View>
                         <View style={{ marginBottom: 20, width: '100%', height: 40, justifyContent:'center',alignItems:'center', backgroundColor: this.state.updatesEnabled ? 'green' : 'gray' }}>
                             {this.state.updatesEnabled && <Text style={{color:'white',fontWeight:'800',fontSize:18}}>Veri kaydı devam ediyor.</Text>}
@@ -388,7 +440,7 @@ export class MainScreen extends Component {
                         <View style={styles.row}>
                             <Button
                                 onPress={() => this.export()}
-                                title="Export"
+                                title="Dışa Aktar"
                             />
                         </View>
                         <TextInput
@@ -426,7 +478,7 @@ export class MainScreen extends Component {
                             />
                             <Button title="Ayarları Kaydet" onPress={() => this.saveConfig()} />
                             <Button title="İzinleri talep et" onPress={() => requestMultiPermission()} />
-                            <Button title="close" onPress={() => this.setState({ modal0: false })} />
+                            <Button title="Kapat" onPress={() => this.setState({ modal0: false })} />
                         </View>
                     </View>
                 </Modal>
