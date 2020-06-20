@@ -6,7 +6,7 @@ import {
     ScrollView,
     View,
     Text,
-    StatusBar,
+    PermissionsAndroid,
     Button,
     TextInput,
     Modal
@@ -60,7 +60,6 @@ export class MainScreen extends Component {
             alt: 0,
             acc: 0,
             str: 0,
-            typ: 'type_yok',    //LTE,WCDMA
             net: 'network_yok', //2g/3g/4g
             updatesEnabled: false,
             fileName: 'isimiz',
@@ -74,13 +73,21 @@ export class MainScreen extends Component {
 
     watchId = null;
 
-    componentDidMount() {
+    componentDidMount(){
         console.log('componentDidMount');
-        console.log(Moment().format('YYYY-MM-DD_HH.mm.ss'));
+        console.log(PermissionsAndroid.RESULTS.GRANTED)
 
         // Uygulama açıldığı gibi gerekli izinleri kullanıcıya sorar.
-        requestMultiPermission;
+        requestMultiPermission();
 
+        console.log('izin istendi ?')
+        
+        this.initializeApp();
+       
+    }
+
+    initializeApp(){
+        
         // Uygulama açılınca veritabanına telefon imei ile bir kayıt açar.
         TelephonyManager.getPhoneInfo(data => {
             // telefon imei sonra lazım olur diye STATE içinde kaydedilir.
@@ -130,7 +137,6 @@ export class MainScreen extends Component {
                 .catch(e => console.log('hata olustu', e));
         });
     }
-
 
     // veritabanından veri okur
     // https://rnfirebase.io/firestore/usage#read-data
@@ -296,16 +302,6 @@ export class MainScreen extends Component {
                     // telefon sinyal bilgilerini verir. ağ tipini verir. LTE/WCDMA/UTMS. sinyal gücü verir 18asu.
                     TelephonyManager.getCellInfo((network) => {
 
-                        //bazen telefon cekmez bu değer bos döner.
-                        if (network[0].connectionType = ! null) {
-                            record["type"] = network[0].connectionType;
-                            console.log("connectionType \t" + network[0].connectionType);
-                            this.setState({ typ: network[0].connectionType });
-                        } else {
-                            record["type"] = "no_signal";
-                            console.log("telefon cekmiyor");
-                        }
-
                         // bazen telefon cekmez, bu deger boş dönebilir.
                         if (network[0].cellSignalStrength.asuLevel) {
 
@@ -336,7 +332,7 @@ export class MainScreen extends Component {
                 enableHighAccuracy: true,
                 distanceFilter: 0,
                 interval: 1000 * this.state.period,
-                fastestInterval: 2000,
+                fastestInterval: 1000 * this.state.period,
                 forceRequestLocation: true,
                 showLocationDialog: true,
                 useSignificantChanges: false,
@@ -380,24 +376,23 @@ export class MainScreen extends Component {
                         style={styles.scrollView}>
 
                         <View style={styles.header}>
-                            <Text> SİNYAL GÜCÜ </Text>
+                            <Text style={{fontSize:24,fontWeight:800}}> SİNYAL GÜCÜ </Text>
                         </View>
-
+                        
                         <View style={styles.row}>
-
                             <Button title="config" onPress={() => this.setState({ modal0: true })} />
-
+                        </View>
+                        <View style={{marginBottom:20, width:'100%',height:40, backgroundColor:this.state.updatesEnabled ? 'green' : 'gray'}}>
+                            { this.state.updatesEnabled && <Text>Veri kaydı devam ediyor.</Text>}
                         </View>
                         <View style={styles.row}>
                             <Button
                                 onPress={() => this.getLocationUpdates()}
                                 title="Başlat"
-                                color={this.state.updatesEnabled ? 'green' : 'blue'}
                             />
                             <Button
                                 onPress={() => this.removeLocationUpdates()}
                                 title="Bitir"
-                                color={this.state.updatesEnabled ? 'blue' : 'green'}
                             />
                         </View>
 
@@ -431,9 +426,10 @@ export class MainScreen extends Component {
                         <View style={styles.modalView}>
                             <TextInput
                                 value={this.state.period}
-                                onChangeText={(period) => this.setState({ period })}
+                                onChangeText={(period) => this.setState({ period: period })}
+                                onSubmitEditing={(period) => this.setState({ period : period})}
                                 style={styles.inputs}
-                                placeholder={"örn. 2sn"}
+                                placeholder={"örn. 2"}
                                 placeholderTextColor={"#aaa"}
                                 maxLength={3}
                                 autoCapitalize="none"
