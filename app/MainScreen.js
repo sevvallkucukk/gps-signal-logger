@@ -76,6 +76,7 @@ export class MainScreen extends Component {
 
     componentDidMount() {
         console.log('componentDidMount');
+        console.log(Moment().format('YYYY-MM-DD_HH.mm.ss'));
 
         // Uygulama açıldığı gibi gerekli izinleri kullanıcıya sorar.
         requestMultiPermission;
@@ -101,7 +102,7 @@ export class MainScreen extends Component {
                         .set({
                             isim: 0,
                             imei: data.imei,
-                            kayitTarihi: Moment().format('YYYY-MM-DD_HH:MM:SS'),
+                            kayitTarihi: Moment().format('YYYY-MM-DD_HH:mm:ss'),
                         })
                         .then(() => {
                             alert('Cihaz Kaydedildi')
@@ -121,13 +122,87 @@ export class MainScreen extends Component {
                 .set({
                     isim: 0,
                     imei: data.imei,
-                    kayitTarihi: Moment().format('YYYY-MM-DD_HH:MM:SS'),
+                    kayitTarihi: Moment().format('YYYY-MM-DD_HH:mm:ss'),
                 })
                 .then(() => {
                     console.log('Cihaz Kaydedildi');
                 })
                 .catch(e => console.log('hata olustu', e));
         });
+    }
+
+
+    // veritabanından veri okur
+    // https://rnfirebase.io/firestore/usage#read-data
+    export = async () => {
+        console.log('readRecords()');
+
+        let promise = new Promise((resolve, reject)=>{
+            firestore()
+                .collection(this.state.imei)
+                .orderBy('isim', 'asc')
+                .get()
+                .then(data => {
+                    const size = data.size;
+                    console.log("sonuncu:  ", data.docs[size - 1]._data);
+                    console.log("getRecords", data.size);
+                    
+                    const isim = data.docs[size - 1]._data.isim;
+                    console.log('isim '+isim)
+
+                    resolve(isim);
+                })
+                .catch(e => {
+                    reject(e);
+                    console.error(e);
+                });
+        })
+
+        let isim = await promise;
+
+        let promise2 =  new Promise( (resolve,reject) =>{
+            firestore()
+            .collection(this.state.imei)
+            .doc(isim)
+            .get()
+            .then(d => {
+                let records = d._data.records;
+                console.log(records)
+                resolve(records);
+            })
+            .catch(e => {
+                reject(e);
+                console.error(e);
+            });
+        })
+
+        let records = await promise2;
+
+        console.log('dosay yazma baslıyor.',records)
+
+        let content= "time,accuracy,latitude,longitude,altitude,network,stregnth";
+        records.forEach(record => {
+            content += "\n";
+            content += record.time +','+record.accuracy+','+record.location.latitude+','+record.location.longitude+','+record.altitude+','+record.network+','+record.strength;
+        });
+        console.log('2content: ',content)
+
+        Moment.locale('tr');
+        const folderPath = RNFS.ExternalStorageDirectoryPath + '/GPS_Signal_Logger/';
+        // const filePath = folderPath + Moment().format('YYYY-MM-DD_HH.mm.ss') + '.csv';
+        const filePath = folderPath + isim;
+
+        RNFS.exists(folderPath)
+            .then(r => console.log('klasor var ',r))
+            .catch(e => console.error('klasor kontrol hatası',e));
+
+        RNFS.mkdir(folderPath)
+            .then(r => console.log('klasor acıldı ',r))
+            .catch(e => console.log('klasor acma hatası',e));
+
+        RNFS.writeFile(filePath, content, "utf8")
+            .then(t => console.log('dosayaya yazıldı', t))
+            .catch(e => console.log('dosayay yazılamadı',e));
     }
 
     // veritabanına veri kaydeder.
@@ -159,6 +234,7 @@ export class MainScreen extends Component {
                     .collection(this.state.imei)
                     .doc(this.state.fileName)
                     .set({
+                        isim: this.state.fileName,
                         records: firestore.FieldValue.arrayUnion(record)
                     })
                     .then(i => console.log("ADD kayıt veritabanına eklendi", i))
@@ -187,7 +263,8 @@ export class MainScreen extends Component {
         // }
         console.log("getLocationUpdates()")
 
-        const fileName = Moment().format('YYYY-MM-DD_HH:MM:SS') + '.csv';
+        const fileName = Moment().format('YYYY-MM-DD_HH.mm.ss') + '.csv';
+        console.log("DOSYA siim verildi  \t"+fileName)
 
         this.setState({ updatesEnabled: true, fileName: fileName })
 
@@ -206,7 +283,7 @@ export class MainScreen extends Component {
                 record["accuracy"] = position.coords.accuracy;
                 record["location"] = new firestore.GeoPoint(position.coords.latitude, position.coords.longitude);
                 record["altitude"] = position.coords.altitude;
-                record["time"] = Moment(position.timestamp).format('YYYY-MM-DD_HH:MM:SS');
+                record["time"] = Moment(position.timestamp).format('YYYY-MM-DD_HH:mm:ss');
 
                 // telefon ağ isim bilgisini verir. 2g/3g/4g gibi
                 TelephonyManager.getNetworkClass((network) => {
@@ -287,20 +364,18 @@ export class MainScreen extends Component {
     // sinyal gücünü asu degerinden yüzdelik değere cevirir.
     // 4g icin hesaplama ile diğer ağlar icin yapılan farklıdır.
     convertPercentage(asu) {
-        if (this.state.net == '4g') {
-            return ((asu - 3) / 92) * 100;
+        console.log('convert')
+        console.log(this.state.net);
+        if (this.state.net == '4G') {
+            return (((asu - 3) / 92) * 100).toFixed(2);
         } else {
-            return (asu / 32) * 100;
+            return ((asu / 32) * 100).toFixed(2);
         }
     }
 
     saveConfig() {
         console.log('saveConfig()')
         this.setState({ modal0: false })
-    }
-
-    export() {
-        alert('export')
     }
 
     render() {
