@@ -327,14 +327,7 @@ export class MainScreen extends Component {
 
                     });
 
-
                 });
-
-
-
-
-                //this.readRecords();
-
             },
             (error) => {
                 console.log('location err: ', error);
