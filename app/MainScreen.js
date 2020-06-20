@@ -184,6 +184,12 @@ export class MainScreen extends Component {
     // https://rnfirebase.io/firestore/usage#read-data
     export = async () => {
         this.addLog('Dışa aktarma başlatılıyor');
+        // console.log(RNFS.DownloadDirectoryPath)
+        // console.log('file://'+RNFS.DownloadDirectoryPath)
+        // console.log(RNFS.DocumentDirectoryPath)
+        // console.log(RNFS.ExternalDirectoryPath)
+        // console.log(RNFS.ExternalStorageDirectoryPath)
+        // return;
 
         let promise = new Promise((resolve, reject) => {
             firestore()
@@ -235,31 +241,32 @@ export class MainScreen extends Component {
             content += record.time + ',' + record.accuracy + ',' + record.location.latitude + ',' + record.location.longitude + ',' + record.altitude + ',' + record.network + ',' + record.strength;
         });
 
-        Moment.locale('tr');
-        const folderPath = RNFS.ExternalStorageDirectoryPath + '/SinyalGucu/';
+        console.log(RNFS.DownloadDirectoryPath);
+        const folderPath = 'file://'+RNFS.DownloadDirectoryPath +'/SinyalGücü/';
         
         const filePath = folderPath + isim;
 
         RNFS.exists(folderPath)
             .then(r =>{
                 if(r){
+                    this.addLog('SinyalGucu klasor var')
                     RNFS.writeFile(filePath, content, "utf8")
-                        .then(t => this.addLog('dosyaya yazıldı',t))
+                        .then(t => this.addLog('dosyaya yazıldı => ' + folderPath))
                         .catch(e => this.addLog('dosayay yazılamadı', e));
                 }
                 else{
+                    this.addLog('SinyalGucu klasor yok')
                     RNFS.mkdir(folderPath)
                         .then(r => {
-                            console.log('klasor yok. yeni olusturuldu ', r)
+                            this.addLog('klasor yok. yeni olusturuldu ', r)
                             RNFS.writeFile(filePath, content, "utf8")
-                                .then(t => this.addLog('dosyaya yazıldı',t))
+                                .then(t => this.addLog('dosyaya yazıldı => '+ folderPath))
                                 .catch(e => this.addLog('dosayay yazılamadı', e));
                         })
                         .catch(e => console.log('klasor acma hatası', e));
                 }
             })
             .catch(e => console.error('klasor kontrol hatası', e));
-
     }
 
     // veritabanına veri kaydeder.
