@@ -8,7 +8,8 @@ import {
     Text,
     StatusBar,
     Button,
-    TextInput
+    TextInput,
+    Modal
 } from 'react-native';
 
 import Geolocation from 'react-native-geolocation-service';
@@ -148,7 +149,8 @@ export class MainScreen extends Component {
     }
 
     saveConfig() {
-        alert('kaydettiginiz aralık ' + this.state.period);
+        console.log('saveConfig()')
+        this.setState({ modal0: false })
     }
 
     export() {
@@ -158,70 +160,83 @@ export class MainScreen extends Component {
     render() {
         return (
             <>
-                <StatusBar barStyle="dark-content" />
-                <SafeAreaView>
-                    <ScrollView
-                        contentInsetAdjustmentBehavior="automatic"
-                        style={styles.scrollView}>
+            <SafeAreaView>
+                <ScrollView
+                    contentInsetAdjustmentBehavior="automatic"
+                    style={styles.scrollView}>
 
-                        <View style={styles.header}>
-                            <Text> GPS SIGNAL LOGGER </Text>
-                        </View>
+                    <View style={styles.header}>
+                        <Text> SİNYAL GÜCÜ </Text>
+                    </View>
 
-                        <View style={styles.row}>
-                            <TextInput
-                                value={this.state.period}
-                                onChangeText={(period) => this.setState({ period })}
-                                style={styles.inputs}
-                                placeholder={"örn. 2sn"}
-                                placeholderTextColor={"#aaa"}
-                                maxLength={3}
-                                autoCapitalize="none"
-                                textContentType="telephoneNumber"
-                                returnKeyType="done"
-                                keyboardType="number-pad"
-                                blurOnSubmit={false}
-                            />
-                            <Button
-                                onPress={() => this.saveConfig()}
-                                title="Ayarları Kaydet"
-                            />
-                        </View>
+                    <View style={styles.row}>
 
-                        <View style={styles.row}>
-                            <Button
-                                onPress={this.getLocationUpdates}
-                                title="Başlat"
-                            />
-                            <Button
-                                onPress={this.removeLocationUpdates}
-                                title="Bitir"
-                            />
-                        </View>
-                        <View style={styles.row}>
-                            <Text>enlem: {this.state.lat} </Text>
-                            <Text>boylam: {this.state.lon} </Text>
-                        </View>
-                        <View style={styles.row}>
-                            <Text>sinyal gücü: {this.state.strength} </Text>
-                        </View>
+                        <Button title="config" onPress={() => this.setState({ modal0: true })} />
 
-                        <View style={styles.row}>
-                            <Button
-                                onPress={() => this.export()}
-                                title="Export"
-                            />
-                        </View>
+                    </View>
 
-                        <View style={styles.row}>
-                            <Button
-                                onPress={() => this.export()}
-                                title="Upload"
-                            />
-                        </View>
+                    <View style={styles.row}>
+                        <Button
+                            onPress={this.getLocationUpdates}
+                            title="Başlat"
+                        />
+                        <Button
+                            onPress={this.removeLocationUpdates}
+                            title="Bitir"
+                        />
+                    </View>
+                    <View style={styles.row}>
+                        <Text>enlem: {this.state.lat} </Text>
+                        <Text>boylam: {this.state.lon} </Text>
+                    </View>
+                    <View style={styles.row}>
+                        <Text>sinyal gücü: {this.state.strength} </Text>
+                    </View>
 
-                    </ScrollView>
-                </SafeAreaView>
+                    <View style={styles.row}>
+                        <Button
+                            onPress={() => this.export()}
+                            title="Export"
+                        />
+                    </View>
+
+                    <View style={styles.row}>
+                        <Button
+                            onPress={() => this.export()}
+                            title="Upload"
+                        />
+                    </View>
+
+                </ScrollView>
+            </SafeAreaView>
+
+            <Modal
+                animationType="slide"
+                transparent={true}
+                visible={this.state.modal0}
+                onRequestClose={() => this.setState({ modal0: false })} 
+                >
+                <View style={styles.centeredView}>
+                    <View style={styles.modalView}>
+                        <TextInput
+                            value={this.state.period}
+                            onChangeText={(period) => this.setState({ period })}
+                            style={styles.inputs}
+                            placeholder={"örn. 2sn"}
+                            placeholderTextColor={"#aaa"}
+                            maxLength={3}
+                            autoCapitalize="none"
+                            textContentType="telephoneNumber"
+                            returnKeyType="done"
+                            keyboardType="number-pad"
+                            blurOnSubmit={false}
+                        />
+                        <Button title="Ayarları Kaydet" onPress={() => this.saveConfig()} />
+                        <Button title="close" onPress={() => this.setState({ modal0: false })} />
+                    </View>
+                </View>
+            </Modal>
+
             </>
         )
     }
@@ -243,5 +258,31 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-around',
         marginBottom: 20
-    }
+    },
+    column: {
+        flexDirection: 'column',
+        justifyContent: 'space-around',
+        marginBottom: 20
+    },
+    centeredView: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: '#333e'
+    },
+    modalView: {
+        margin: 20,
+        backgroundColor: "white",
+        borderRadius: 20,
+        padding: 35,
+        alignItems: "center",
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 2
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 3.84,
+        elevation: 5
+    },
 });
