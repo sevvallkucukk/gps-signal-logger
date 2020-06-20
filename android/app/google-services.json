@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "650372865659",
+    "firebase_url": "https://gps-signal-logger.firebaseio.com",
+    "project_id": "gps-signal-logger",
+    "storage_bucket": "gps-signal-logger.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:650372865659:android:623d32cf7e70a6700d8cde",
+        "android_client_info": {
+          "package_name": "com.gpssignallogger"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "650372865659-09egdbjnglpqihh1dosju7ot9eh7vnv4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gpssignallogger",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "650372865659-kcmv35c0nnjva4v7blqofq58jtfvvp42.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCb_6PYAMf7b83RwsUYIG-28maUMbA7sjc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "650372865659-kcmv35c0nnjva4v7blqofq58jtfvvp42.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
