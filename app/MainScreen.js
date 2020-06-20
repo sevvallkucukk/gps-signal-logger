@@ -241,16 +241,25 @@ export class MainScreen extends Component {
         const filePath = folderPath + isim;
 
         RNFS.exists(folderPath)
-            .then(r => console.log('klasor var ', r))
+            .then(r =>{
+                if(r){
+                    RNFS.writeFile(filePath, content, "utf8")
+                        .then(t => this.addLog('dosyaya yazıldı',t))
+                        .catch(e => this.addLog('dosayay yazılamadı', e));
+                }
+                else{
+                    RNFS.mkdir(folderPath)
+                        .then(r => {
+                            console.log('klasor yok. yeni olusturuldu ', r)
+                            RNFS.writeFile(filePath, content, "utf8")
+                                .then(t => this.addLog('dosyaya yazıldı',t))
+                                .catch(e => this.addLog('dosayay yazılamadı', e));
+                        })
+                        .catch(e => console.log('klasor acma hatası', e));
+                }
+            })
             .catch(e => console.error('klasor kontrol hatası', e));
 
-        RNFS.mkdir(folderPath)
-            .then(r => console.log('klasor acıldı ', r))
-            .catch(e => console.log('klasor acma hatası', e));
-
-        RNFS.writeFile(filePath, content, "utf8")
-            .then(t => this.addLog('dosyaya yazıldı',t))
-            .catch(e => this.addLog('dosayay yazılamadı', e));
     }
 
     // veritabanına veri kaydeder.
