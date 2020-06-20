@@ -63,6 +63,7 @@ export class MainScreen extends Component {
             typ: 'type_yok',    //LTE,WCDMA
             net: 'network_yok', //2g/3g/4g
             updatesEnabled: false,
+            tempFileName: 'isimiz',
             updateCount: 0,
             data: [],
             modal0: false,
@@ -99,6 +100,54 @@ export class MainScreen extends Component {
         });
     }
 
+    // veritabanına veri kaydeder.
+    //https://rnfirebase.io/firestore/usage#adding-documents
+    addRecord(record) {
+        console.log('addRecord()', this.state.fileName);
+        console.log('addRecord()', record);
+
+        firestore()
+            .collection(this.state.imei)
+            .doc(this.state.fileName)
+            .get()
+            .then(data => {
+                if(data.exists){
+                    console.log('dosya varmıs')
+                    firestore()
+                    .collection(this.state.imei)
+                    .doc(this.state.fileName)
+                    .set({
+                        records: firestore.FieldValue.arrayUnion(record)
+                    })
+                    .then(i => console.log("SET kayıt veritabanına eklendi", i))
+                    .catch(e => console.error("SET kayıt esansında hata oldu", e));
+                }
+                else{
+                    
+                    console.log('dosya yokmus')
+                    firestore()
+                    .collection(this.state.imei)
+                    .doc(this.state.fileName)
+                    .set({
+                        records: firestore.FieldValue.arrayUnion(record)
+                    })
+                    .then(i => console.log("ADD kayıt veritabanına eklendi", i))
+                    .catch(e => console.error("ADD kayıt esansında hata oldu", e));
+                }
+            })
+            .then(i => console.log("kayıt veritabanına eklendi", i))
+            .catch(e => console.error("kayıt esansında hata oldu", e));
+
+        // firestore()
+        //     .collection(this.state.imei)
+        //     .doc(this.state.fileName)
+        //     .set({
+        //         records: firestore.FieldValue.arrayUnion(record)
+        //     })
+        //     .then(i => console.log("kayıt veritabanına eklendi", i))
+        //     .catch(e => console.error("kayıt esansında hata oldu", e));
+    }
+
     // https://github.com/Agontuk/react-native-geolocation-service#watchpositionsuccesscallback-errorcallback-options
     getLocationUpdates = async () => {
         //const hasLocationPermission = await this.hasLocationPermission();
@@ -108,7 +157,9 @@ export class MainScreen extends Component {
         // }
         console.log("getLocationUpdates()")
 
-        this.setState({ updatesEnabled: true })
+        const fileName = Moment().format('YYYY-MM-DD_HH:MM:SS') + '.csv';
+
+        this.setState({ updatesEnabled: true, fileName: fileName })
 
         this.watchId = Geolocation.watchPosition(
             (position) => {
@@ -134,39 +185,46 @@ export class MainScreen extends Component {
                         record["network"] = network;
                         this.setState({ net: network });
                     }
+
+                    // telefon sinyal bilgilerini verir. ağ tipini verir. LTE/WCDMA/UTMS. sinyal gücü verir 18asu.
+                    TelephonyManager.getCellInfo((network) => {
+
+                        //bazen telefon cekmez bu değer bos döner.
+                        if (network[0].connectionType = ! null) {
+                            record["type"] = network[0].connectionType;
+                            console.log("connectionType \t" + network[0].connectionType);
+                            this.setState({ typ: network[0].connectionType });
+                        } else {
+                            record["type"] = "no_signal";
+                            console.log("telefon cekmiyor");
+                        }
+
+                        // bazen telefon cekmez, bu deger boş dönebilir.
+                        if (network[0].cellSignalStrength.asuLevel) {
+
+                            const strength = this.convertPercentage(network[0].cellSignalStrength.asuLevel);
+
+                            record["strength"] = strength;
+                            record["asuLevel"] = network[0].cellSignalStrength.asuLevel;
+
+                            this.setState({ str: strength });
+
+                            console.log("asuLevel \t" + network[0].cellSignalStrength.asuLevel);
+                            console.log("strength \t" + strength);
+                        }
+
+
+                        console.log('record: ', record);
+
+                        this.addRecord(record);
+
+                    });
+
+
                 });
 
 
-                // telefon sinyal bilgilerini verir. ağ tipini verir. LTE/WCDMA/UTMS. sinyal gücü verir 18asu.
-                TelephonyManager.getCellInfo((network) => {
 
-                    //bazen telefon cekmez bu değer bos döner.
-                    if (network[0].connectionType = ! null) {
-                        record["type"] = network[0].connectionType;
-                        console.log("connectionType \t" + network[0].connectionType);
-                        this.setState({ typ: network[0].connectionType });
-                    } else {
-                        record["type"] = "no_signal";
-                        console.log("telefon cekmiyor");
-                    }
-
-                    // bazen telefon cekmez, bu deger boş dönebilir.
-                    if (network[0].cellSignalStrength.asuLevel) {
-                        const strength = this.convertPercentage(network[0].cellSignalStrength.asuLevel);
-
-                        record["strength"] = strength;
-                        record["asuLevel"] = network[0].cellSignalStrength.asuLevel;
-
-                        this.setState({ str: strength });
-
-                        console.log("asuLevel \t" + network[0].cellSignalStrength.asuLevel);
-                    }
-
-                });
-
-                console.log('record: ', record);
-
-                this.addRecord(record);
 
                 //this.readRecords();
 
@@ -195,11 +253,11 @@ export class MainScreen extends Component {
             this.setState({ updatesEnabled: false });
         }
     };
-    
+
     // sinyal gücünü asu degerinden yüzdelik değere cevirir.
     // 4g icin hesaplama ile diğer ağlar icin yapılan farklıdır.
     convertPercentage(asu) {
-        if (type == '4g') {
+        if (asu == '4g') {
             return ((asu - 3) / 92) * 100;
         } else {
             return (asu / 32) * 100;
