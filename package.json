@@ -14,7 +14,7 @@
     "@react-native-firebase/firestore": "^7.1.7",
     "moment": "^2.27.0",
     "react": "16.11.0",
-    "react-native": "0.62.2",
+    "react-native": "0.62.3",
     "react-native-fs": "^2.16.6",
     "react-native-geolocation-service": "^5.0.0",
     "react-native-telephony-manager": "file:react-native-telephony-manager"
